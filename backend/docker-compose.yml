@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: wendor_app
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: username
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: wendor
+    volumes:
+      - wendor_app:/var/lib/postgresql/data
+
+volumes:
+  wendor_app:

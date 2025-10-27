@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. Enums (Custom Types)
+// Prisma maps these to PostgreSQL ENUM types.
+
+enum UserRole {
+  customer
+  provider
+}
+
+enum SlotStatus {
+  available
+  booked
+}
+
+enum ServiceType {
+  Electrician
+  Carpentry
+  CarWasher
+  Plumbing
+  ApplianceRepair
+}
+
+enum ReservationStatus {
+  pending
+  confirmed
+  cancelled
+}
+
+// 2. Models (Tables)
+
+// ----------------------------------------------------
+// Model: User (For both customers and service providers)
+// ----------------------------------------------------
+model User {
+  id          Int          @id @default(autoincrement())
+  name        String       @db.VarChar(255)
+  email       String       @unique @db.VarChar(255)
+  password    String       @db.VarChar(255)
+  role        UserRole     @default(customer)
+  serviceType ServiceType? @map("service_type") // The type of service provided. NULL for customers.
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relationships
+  slots        Slot[]        @relation("ProviderSlots") // Slots offered by this provider
+  reservations Reservation[] @relation("CustomerReservations") // Reservations made by this customer
+
+  @@map("users") // Maps the model name 'User' to the table name 'users'
+}
+
+// ----------------------------------------------------
+// Model: Slot (Available time blocks by a provider)
+// ----------------------------------------------------
+model Slot {
+  id         Int        @id @default(autoincrement())
+  providerId Int        @map("provider_id")
+  startTime  DateTime   @map("start_time") @db.Timestamp(3)
+  endTime    DateTime   @map("end_time") @db.Timestamp(3)
+  price      Int        @db.Integer
+  status     SlotStatus @default(available)
+
+  // Relationships
+  provider    User         @relation("ProviderSlots", fields: [providerId], references: [id])
+  // One-to-one relationship with Reservation, ensuring a slot can only be booked once.
+  reservation Reservation?
+
+  @@unique([providerId, startTime, endTime]) // Constraint to prevent duplicate slots for a provider.
+  @@index([providerId, startTime], name: "idx_slots_provider_time") // Optimization for fetching slots by provider and time.
+  @@map("slots")
+}
+
+// ----------------------------------------------------
+// Model: Reservation (The actual booking)
+// ----------------------------------------------------
+model Reservation {
+  id          Int               @id @default(autoincrement())
+  slotId      Int               @unique @map("slot_id") // UNIQUE is crucial for race condition handling: 1 slot = 1 reservation
+  customerId  Int               @map("customer_id")
+  status      ReservationStatus @default(pending)
+  bookingTime DateTime          @default(now()) @map("booking_time") @db.Timestamptz(6)
+
+  // Relationships
+  slot     Slot @relation(fields: [slotId], references: [id])
+  customer User @relation("CustomerReservations", fields: [customerId], references: [id])
+
+  @@map("reservations")
+}
