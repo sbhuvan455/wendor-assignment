@@ -11,7 +11,7 @@ async function bootstrap() {
 
   // Enable CORS for frontend communication
   app.enableCors({
-    origin: 'http://localhost:3000', // Frontend URL
+    origin: ['https://home-service-sigma.vercel.app', 'http://localhost:3000'], // Frontend URL
     credentials: true, // Allow cookies
   });
 
