@@ -62,6 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const login = async (email: string, password: string) => {
         try {
             const response = await authApi.login({ email, password });
+            localStorage.setItem('access_token', response.token);
             setUser(response.user);
         } catch (error) {
             throw error;
@@ -77,6 +78,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }) => {
         try {
             const response = await authApi.register(userData);
+            localStorage.setItem('access_token', response.token);
             setUser(response.user);
         } catch (error) {
             throw error;
@@ -86,6 +88,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const logout = async () => {
         try {
             await authApi.logout();
+            localStorage.removeItem('access_token');
             setUser(null);
         } catch (error) {
             setUser(null);

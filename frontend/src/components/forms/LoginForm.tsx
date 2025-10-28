@@ -1,44 +1,63 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
-const loginSchema = z.object({
-    email: z.string().email('Invalid email address'),
-    password: z.string().min(1, 'Password is required'),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const LoginForm = () => {
     const { login } = useAuth();
     const router = useRouter();
+
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+
+    const [validationErrors, setValidationErrors] = useState({ email: '', password: '' });
+
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [apiError, setApiError] = useState('');
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm<LoginFormData>({
-        resolver: zodResolver(loginSchema),
-    });
 
-    const onSubmit = async (data: LoginFormData) => {
+    const validateForm = () => {
+        const errors = { email: '', password: '' };
+        let isValid = true;
+
+        if (!email) {
+            errors.email = 'Email is required';
+            isValid = false;
+        } else if (!EMAIL_REGEX.test(email)) {
+            errors.email = 'Invalid email address';
+            isValid = false;
+        }
+
+        if (!password) {
+            errors.password = 'Password is required';
+            isValid = false;
+        }
+
+        setValidationErrors(errors);
+        return isValid;
+    };
+
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setApiError('');
+
+
+        if (!validateForm()) {
+            return;
+        }
+
         setIsLoading(true);
-        setError('');
-
         try {
-            await login(data.email, data.password);
+            await login(email, password);
             router.push('/');
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+            setApiError(err.response?.data?.message || 'Login failed. Please check your credentials.');
         } finally {
             setIsLoading(false);
         }
@@ -48,27 +67,28 @@ const LoginForm = () => {
         <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
             <h2 className="text-2xl font-bold text-center text-gray-900 mb-6">Sign In</h2>
 
-            {error && (
+            {apiError && (
                 <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                    {error}
+                    {apiError}
                 </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Email */}
                 <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                         Email Address
                     </label>
                     <input
-                        {...register('email')}
                         type="email"
                         id="email"
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 border text-gray-600 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Enter your email"
                     />
-                    {errors.email && (
-                        <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                    {validationErrors.email && (
+                        <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
                     )}
                 </div>
 
@@ -79,10 +99,11 @@ const LoginForm = () => {
                     </label>
                     <div className="mt-1 relative">
                         <input
-                            {...register('password')}
                             type={showPassword ? 'text' : 'password'}
                             id="password"
-                            className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="block w-full px-3 py-2 pr-10 border text-gray-600 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Enter your password"
                         />
                         <button
@@ -97,8 +118,8 @@ const LoginForm = () => {
                             )}
                         </button>
                     </div>
-                    {errors.password && (
-                        <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                    {validationErrors.password && (
+                        <p className="mt-1 text-sm text-red-600">{validationErrors.password}</p>
                     )}
                 </div>
 
@@ -120,7 +141,7 @@ const LoginForm = () => {
             </form>
 
             <p className="mt-6 text-center text-sm text-gray-600">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <a href="/register" className="font-medium text-blue-600 hover:text-blue-500">
                     Create one here
                 </a>

@@ -4,8 +4,27 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // Important for cookie-based auth
+  withCredentials: true,
 });
+
+api.interceptors.request.use(
+  (config) => {
+    // --- Get the token from wherever you stored it ---
+    const token = localStorage.getItem('access_token'); // Or sessionStorage, or context
+
+    if (token) {
+      // --- Add the Authorization header ---
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log('Attaching Auth header:', config.headers.Authorization); // For debugging
+    } else {
+      console.log('No token found, sending request without Auth header.'); // For debugging
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // Auth API functions
 export const authApi = {
@@ -16,9 +35,7 @@ export const authApi = {
     role: 'customer' | 'provider';
     serviceType?: 'Electrician' | 'Carpentry' | 'CarWasher' | 'Plumbing' | 'ApplianceRepair';
   }) => {
-    // console.log("calling register endpoint", userData);
     const response = await api.post('/auth/register', userData);
-    // console.log("response", response.data);
     return response.data;
   },
 

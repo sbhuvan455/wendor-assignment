@@ -1,21 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { slotApi } from '@/lib/api';
 import { Loader2, X } from 'lucide-react';
 
-const createSlotSchema = z.object({
-    date: z.string().min(1, 'Date is required'),
-    startTime: z.string().min(1, 'Start time is required'),
-    endTime: z.string().min(1, 'End time is required'),
-    slotDurationMinutes: z.number().min(30, 'Minimum 30 minutes').max(240, 'Maximum 240 minutes'),
-    price: z.number().min(0, 'Price cannot be negative'),
-});
-
-type CreateSlotFormData = z.infer<typeof createSlotSchema>;
 
 interface CreateSlotFormProps {
     onSuccess: () => void;
@@ -23,31 +11,65 @@ interface CreateSlotFormProps {
 }
 
 const CreateSlotForm: React.FC<CreateSlotFormProps> = ({ onSuccess, onClose }) => {
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [startTime, setStartTime] = useState('09:00');
+    const [endTime, setEndTime] = useState('17:00');
+    const [slotDurationMinutes, setSlotDurationMinutes] = useState(60);
+    const [price, setPrice] = useState(500);
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-        watch,
-    } = useForm<CreateSlotFormData>({
-        resolver: zodResolver(createSlotSchema),
-        defaultValues: {
-            slotDurationMinutes: 60,
-            price: 500,
-        },
+    const [timezoneOffset] = useState(() => {
+        const offset = new Date().getTimezoneOffset();
+        const sign = offset > 0 ? '-' : '+';
+        const hours = Math.floor(Math.abs(offset) / 60).toString().padStart(2, '0');
+        const minutes = (Math.abs(offset) % 60).toString().padStart(2, '0');
+        return `${sign}${hours}:${minutes}`;
     });
 
-    const onSubmit = async (data: CreateSlotFormData) => {
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [apiError, setApiError] = useState('');
+    const [validationError, setValidationError] = useState('');
+
+
+    const validateForm = () => {
+        if (!date || !startTime || !endTime || !slotDurationMinutes || !price) {
+            setValidationError('All fields are required.');
+            return false;
+        }
+        if (startTime >= endTime) {
+            setValidationError('End time must be after start time.');
+            return false;
+        }
+        if (price <= 0) {
+            setValidationError('Price must be a positive number.');
+            return false;
+        }
+        setValidationError('');
+        return true;
+    };
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setApiError('');
+
+        if (!validateForm()) {
+            return;
+        }
+
         setIsLoading(true);
-        setError('');
 
         try {
-            await slotApi.createSlots(data);
+            const formData = {
+                date,
+                startTime,
+                endTime,
+                slotDurationMinutes: Number(slotDurationMinutes),
+                price: Number(price)
+            };
+            await slotApi.createSlots(formData);
             onSuccess();
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to create slots. Please try again.');
+            setApiError(err.response?.data?.message || 'Failed to create slots. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -68,10 +90,15 @@ const CreateSlotForm: React.FC<CreateSlotFormProps> = ({ onSuccess, onClose }) =
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
-                    {error && (
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    {apiError && (
                         <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-                            {error}
+                            {apiError}
+                        </div>
+                    )}
+                    {validationError && (
+                        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                            {validationError}
                         </div>
                     )}
 
@@ -81,15 +108,13 @@ const CreateSlotForm: React.FC<CreateSlotFormProps> = ({ onSuccess, onClose }) =
                             Date
                         </label>
                         <input
-                            {...register('date')}
                             type="date"
                             id="date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
                             min={today}
                             className="mt-1 block w-full px-3 py-2 border text-gray-600 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         />
-                        {errors.date && (
-                            <p className="mt-1 text-sm text-red-600">{errors.date.message}</p>
-                        )}
                     </div>
 
                     {/* Start Time */}
@@ -98,40 +123,35 @@ const CreateSlotForm: React.FC<CreateSlotFormProps> = ({ onSuccess, onClose }) =
                             Start Time
                         </label>
                         <input
-                            {...register('startTime')}
                             type="time"
                             id="startTime"
+                            value={startTime}
+                            onChange={(e) => setStartTime(e.target.value)}
                             className="mt-1 block w-full px-3 py-2 border text-gray-600 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         />
-                        {errors.startTime && (
-                            <p className="mt-1 text-sm text-red-600">{errors.startTime.message}</p>
-                        )}
                     </div>
 
-                    {/* End Time */}
                     <div>
                         <label htmlFor="endTime" className="block text-sm font-medium text-gray-700">
                             End Time
                         </label>
                         <input
-                            {...register('endTime')}
                             type="time"
                             id="endTime"
+                            value={endTime}
+                            onChange={(e) => setEndTime(e.target.value)}
                             className="mt-1 block w-full px-3 py-2 border text-gray-600 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         />
-                        {errors.endTime && (
-                            <p className="mt-1 text-sm text-red-600">{errors.endTime.message}</p>
-                        )}
                     </div>
 
-                    {/* Slot Duration */}
                     <div>
                         <label htmlFor="slotDurationMinutes" className="block text-sm font-medium text-gray-700">
                             Slot Duration (minutes)
                         </label>
                         <select
-                            {...register('slotDurationMinutes', { valueAsNumber: true })}
                             id="slotDurationMinutes"
+                            value={slotDurationMinutes}
+                            onChange={(e) => setSlotDurationMinutes(Number(e.target.value))}
                             className="mt-1 block w-full px-3 py-2 border text-gray-600 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         >
                             <option value={30}>30 minutes</option>
@@ -141,40 +161,32 @@ const CreateSlotForm: React.FC<CreateSlotFormProps> = ({ onSuccess, onClose }) =
                             <option value={180}>3 hours</option>
                             <option value={240}>4 hours</option>
                         </select>
-                        {errors.slotDurationMinutes && (
-                            <p className="mt-1 text-sm text-red-600">{errors.slotDurationMinutes.message}</p>
-                        )}
                     </div>
 
-                    {/* Price */}
                     <div>
                         <label htmlFor="price" className="block text-sm font-medium text-gray-700">
                             Price per Slot (₹)
                         </label>
                         <input
-                            {...register('price', { valueAsNumber: true })}
                             type="number"
                             id="price"
+                            value={price}
+                            onChange={(e) => setPrice(Number(e.target.value))}
                             min="0"
                             step="50"
                             className="mt-1 block w-full px-3 py-2 border text-gray-600 border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                             placeholder="500"
                         />
-                        {errors.price && (
-                            <p className="mt-1 text-sm text-red-600">{errors.price.message}</p>
-                        )}
                     </div>
 
-                    {/* Preview */}
                     <div className="bg-gray-50 p-4 rounded-lg">
                         <h3 className="text-sm font-medium text-gray-700 mb-2">Preview</h3>
                         <p className="text-sm text-gray-600">
-                            This will create multiple slots from {watch('startTime') || 'start time'} to {watch('endTime') || 'end time'}
-                            with {watch('slotDurationMinutes') || 60} minute intervals at ₹{watch('price') || 500} each.
+                            This will create multiple slots from {startTime || 'start time'} to {endTime || 'end time'}
+                            with {slotDurationMinutes || 60} minute intervals at ₹{price || 500} each.
                         </p>
                     </div>
 
-                    {/* Submit Button */}
                     <div className="flex gap-3 pt-4">
                         <button
                             type="button"
@@ -205,3 +217,4 @@ const CreateSlotForm: React.FC<CreateSlotFormProps> = ({ onSuccess, onClose }) =
 };
 
 export default CreateSlotForm;
+
