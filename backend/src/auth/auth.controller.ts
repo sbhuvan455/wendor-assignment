@@ -10,27 +10,29 @@ export class AuthController {
 
     @setPublic()
     @Post('register')
-    async register(@Body() userInfo: RegisterUserDto, @Res() res) {
+    async register(@Body() userInfo: RegisterUserDto) {
         console.log(userInfo);
         const { user, token } = await this.authService.register(userInfo);
-        const options = {
-            httpOnly: true,
-            secure: true
-        };
+        // const options = {
+        //     httpOnly: true,
+        //     secure: true
+        // };
 
-        return res.status(201).cookie("access_token", token, options).json({ user });
+        // return res.status(201).cookie("access_token", token, options).json({ user });
+        return { user, token };
     }
 
     @setPublic()
     @Post('login')
-    async login(@Body() userInfo: LoginUserDTO, @Res() res) {
+    async login(@Body() userInfo: LoginUserDTO) {
         const { user, token } = await this.authService.login(userInfo);
-        const options = {
-            httpOnly: true,
-            secure: true
-        };
+        // const options = {
+        //     httpOnly: true,
+        //     secure: true
+        // };
 
-        return res.status(200).cookie("access_token", token, options).json({ user });
+        // return res.status(200).cookie("access_token", token, options).json({ user });
+        return { user, token };
     }
 
     @Get('me')
@@ -42,11 +44,10 @@ export class AuthController {
 
     @Post('logout')
     async logout(@Res() res) {
-        // Clear the access_token cookie
         const options = {
             httpOnly: true,
             secure: true,
-            expires: new Date(0) // Set expiration to past date to delete cookie
+            expires: new Date(0)
         };
 
         return res.status(200)
